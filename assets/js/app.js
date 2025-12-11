@@ -696,15 +696,10 @@ function displayAssignments(assignments) {
     // Group by section
     const sections = {};
     assignments.forEach(assignment => {
-        const secNum = assignment.section_number || assignment.section_id || assignment.section || assignment.sectionid;
-        if (!sections[secNum]) {
-            sections[secNum] = [];
+        if (!sections[assignment.section_number]) {
+            sections[assignment.section_number] = [];
         }
-        sections[secNum].push({
-            shift_number: assignment.shift_number || assignment.shift,
-            section_number: secNum,
-            teacher_name: assignment.teacher_name || assignment.teacher
-        });
+        sections[assignment.section_number].push(assignment);
     });
     
     Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
@@ -744,66 +739,16 @@ async function generateAssignments() {
                 `<div class="error">No exams found for this date and shift. Please create exams first.</div>`;
             return;
         }
-
-        // Preview assignments (do not save yet)
+        
+        // Exams exist, proceed with assignment generation
         const result = await postData('assignments.php', {
             exam_date: date,
-            shift_id: parseInt(shiftId),
-            preview: true
+            shift_id: parseInt(shiftId)
         });
-
-        window.lastPreviewAssignments = result; // store preview result
-
-        // Render preview
+        
         document.getElementById('assignment-result').innerHTML = 
-            `<div class="success">Preview ready. Click "Save Assignments" to confirm.</div>`;
-
-        // Transform preview assignments to expected display format (add shift_number and section_number)
-        const shift = shifts.find(s => s.shift_id == shiftId);
-        const previewAssignments = result.data ? result.data : result; // in case response already is data
-        const transformed = previewAssignments.map(a => ({
-            shift_number: shift ? shift.shift_number : shiftId,
-            section_number: a.section_number,
-            teacher_name: a.teacher_name
-        }));
-        displayAssignments(transformed);
-    } catch (error) {
-        document.getElementById('assignment-result').innerHTML = 
-            `<div class="error">${error.message}</div>`;
-    }
-}
-
-// Save previously previewed assignments
-async function savePreviewedAssignments() {
-    const date = document.getElementById('assignment-date').value;
-    const shiftId = document.getElementById('assignment-shift').value;
-
-    if (!date || !shiftId) {
-        alert('Please select both date and shift');
-        return;
-    }
-
-    if (!window.lastPreviewAssignments || !window.lastPreviewAssignments.data) {
-        alert('Please preview assignments first.');
-        return;
-    }
-
-    try {
-        const assignmentsToSave = window.lastPreviewAssignments.data.map(a => ({
-            section_number: a.section_number,
-            teacher_id: a.teacher_id
-        }));
-
-        const result = await postData('assignments.php', {
-            exam_date: date,
-            shift_id: parseInt(shiftId),
-            assignments: assignmentsToSave
-        });
-
-        document.getElementById('assignment-result').innerHTML = 
-            `<div class="success">${result.message || 'Assignments saved successfully!'}</div>`;
-
-        // Reload assignments from DB
+            `<div class="success">${result.message || 'Assignments generated successfully!'}</div>`;
+        
         loadAssignments();
     } catch (error) {
         document.getElementById('assignment-result').innerHTML = 

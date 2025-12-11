@@ -138,37 +138,9 @@ function getAvailableTeachers($db, $exam_date, $shift_id) {
 }
 
 /**
- * Ensure sections exist for a shift and return section_id mapped by section_number
- */
-function ensureSections($db, $shift_id, $sections_count) {
-    $stmt = $db->prepare("SELECT section_id, section_number FROM sections WHERE shift_id = ? ORDER BY section_number");
-    $stmt->bind_param("i", $shift_id);
-    $stmt->execute();
-    $sections_result = $stmt->get_result();
-    $sections_map = [];
-    $existing_count = 0;
-    while ($row = $sections_result->fetch_assoc()) {
-        $sections_map[(int)$row['section_number']] = (int)$row['section_id'];
-        $existing_count++;
-    }
-
-    if ($existing_count < $sections_count) {
-        for ($i = $existing_count + 1; $i <= $sections_count; $i++) {
-            $stmtIns = $db->prepare("INSERT INTO sections (shift_id, section_number) VALUES (?, ?)");
-            $stmtIns->bind_param("ii", $shift_id, $i);
-            $stmtIns->execute();
-            $sections_map[$i] = $db->getLastInsertId();
-        }
-    }
-
-    return $sections_map;
-}
-
-/**
  * Generate observer assignments for a specific date and shift
- * If $preview = true, do NOT write to DB; return assignments only.
  */
-function generateAssignments($db, $exam_date, $shift_id, $preview = false) {
+function generateAssignments($db, $exam_date, $shift_id) {
     // First, check if there are any exams scheduled for this date and shift
     $stmt = $db->prepare("SELECT COUNT(*) as exam_count FROM exams WHERE exam_date = ? AND shift_id = ?");
     $stmt->bind_param("si", $exam_date, $shift_id);
@@ -217,65 +189,72 @@ function generateAssignments($db, $exam_date, $shift_id, $preview = false) {
     // Shuffle teachers for randomization
     shuffle($available_teachers);
     
-    // Get or create sections for this shift (map section_number -> section_id)
-    $sections_map = ensureSections($db, $shift_id, $sections_count);
+    // Get or create sections for this shift
+    $stmt = $db->prepare("SELECT section_id FROM sections WHERE shift_id = ? ORDER BY section_number");
+    $stmt->bind_param("i", $shift_id);
+    $stmt->execute();
+    $sections_result = $stmt->get_result();
+    $sections = [];
+    while ($row = $sections_result->fetch_assoc()) {
+        $sections[] = $row['section_id'];
+    }
     
-    // Prepare assignment pairs (section_number based)
-    $assignments = [];
-    $teacher_index = 0;
-    for ($sectionNum = 1; $sectionNum <= $sections_count; $sectionNum++) {
-        for ($obs = 0; $obs < 2; $obs++) {
-            if ($teacher_index >= count($available_teachers)) {
-                $teacher_index = 0;
-            }
-            $teacher = $available_teachers[$teacher_index];
-            $assignments[] = [
-                'section_number' => $sectionNum,
-                'section_id' => $sections_map[$sectionNum] ?? null,
-                'teacher_id' => $teacher['teacher_id'],
-                'teacher_name' => $teacher['teacher_name']
-            ];
-            $teacher_index++;
+    // Create sections if they don't exist
+    if (count($sections) < $sections_count) {
+        for ($i = count($sections) + 1; $i <= $sections_count; $i++) {
+            $stmt = $db->prepare("INSERT INTO sections (shift_id, section_number) VALUES (?, ?)");
+            $stmt->bind_param("ii", $shift_id, $i);
+            $stmt->execute();
+            $sections[] = $db->getLastInsertId();
         }
     }
-
-    if ($preview) {
-        return [
-            'success' => true,
-            'message' => "Preview: $observers_needed observers assigned to $sections_count sections",
-            'assignments' => $assignments
-        ];
-    }
-
+    
     // Delete existing assignments for this date and shift
     $stmt = $db->prepare("DELETE FROM observer_assignments WHERE exam_date = ? AND shift_id = ?");
     $stmt->bind_param("si", $exam_date, $shift_id);
     $stmt->execute();
-
-    // Insert assignments
+    
+    // Assign 2 observers per section
+    $assignments = [];
+    $teacher_index = 0;
+    
     $insert_stmt = $db->prepare("
         INSERT INTO observer_assignments (exam_date, shift_id, section_id, teacher_id)
         VALUES (?, ?, ?, ?)
     ");
-
-    foreach ($assignments as $assignment) {
-        $section_id = $assignment['section_id'];
-        $teacher_id = $assignment['teacher_id'];
-
-        $insert_stmt->bind_param("siii", $exam_date, $shift_id, $section_id, $teacher_id);
-        $insert_stmt->execute();
-
-        $assignment_id = $db->getLastInsertId();
-
-        // Save to history
-        $history_stmt = $db->prepare("
-            INSERT INTO observer_history (exam_date, shift_id, section_id, teacher_id, assignment_id, action_type)
-            VALUES (?, ?, ?, ?, ?, 'assigned')
-        ");
-        $history_stmt->bind_param("siiii", $exam_date, $shift_id, $section_id, $teacher_id, $assignment_id);
-        $history_stmt->execute();
+    
+    foreach ($sections as $section_id) {
+        for ($obs = 0; $obs < 2; $obs++) {
+            if ($teacher_index >= count($available_teachers)) {
+                // If we run out, cycle back (shouldn't happen due to check above)
+                $teacher_index = 0;
+            }
+            
+            $teacher_id = $available_teachers[$teacher_index]['teacher_id'];
+            
+            $insert_stmt->bind_param("siii", $exam_date, $shift_id, $section_id, $teacher_id);
+            $insert_stmt->execute();
+            
+            $assignment_id = $db->getLastInsertId();
+            
+            // Save to history
+            $history_stmt = $db->prepare("
+                INSERT INTO observer_history (exam_date, shift_id, section_id, teacher_id, assignment_id, action_type)
+                VALUES (?, ?, ?, ?, ?, 'assigned')
+            ");
+            $history_stmt->bind_param("siiii", $exam_date, $shift_id, $section_id, $teacher_id, $assignment_id);
+            $history_stmt->execute();
+            
+            $assignments[] = [
+                'section_id' => $section_id,
+                'teacher_id' => $teacher_id,
+                'teacher_name' => $available_teachers[$teacher_index]['teacher_name']
+            ];
+            
+            $teacher_index++;
+        }
     }
-
+    
     return [
         'success' => true,
         'message' => "Assigned $observers_needed observers to $sections_count sections",
@@ -341,61 +320,8 @@ switch ($method) {
         
         $exam_date = $db->escape($data['exam_date']);
         $shift_id = (int)$data['shift_id'];
-
-        // If explicit assignments are provided (commit preview), save them directly
-        if (isset($data['assignments']) && is_array($data['assignments'])) {
-            // Get shift details
-            $stmt = $db->prepare("SELECT sections_count FROM exam_shifts WHERE shift_id = ?");
-            $stmt->bind_param("i", $shift_id);
-            $stmt->execute();
-            $shift_result = $stmt->get_result();
-            $shift_data = $shift_result->fetch_assoc();
-            if (!$shift_data) {
-                sendError('Shift not found');
-            }
-            $sections_count = $shift_data['sections_count'];
-            $sections_map = ensureSections($db, $shift_id, $sections_count);
-
-            // Delete existing assignments
-            $stmtDel = $db->prepare("DELETE FROM observer_assignments WHERE exam_date = ? AND shift_id = ?");
-            $stmtDel->bind_param("si", $exam_date, $shift_id);
-            $stmtDel->execute();
-
-            // Insert provided assignments
-            $insert_stmt = $db->prepare("
-                INSERT INTO observer_assignments (exam_date, shift_id, section_id, teacher_id)
-                VALUES (?, ?, ?, ?)
-            ");
-
-            foreach ($data['assignments'] as $assignment) {
-                $section_number = (int)$assignment['section_number'];
-                $teacher_id = (int)$assignment['teacher_id'];
-                if (!isset($sections_map[$section_number])) {
-                    sendError("Invalid section number: $section_number");
-                }
-                $section_id = $sections_map[$section_number];
-
-                $insert_stmt->bind_param("siii", $exam_date, $shift_id, $section_id, $teacher_id);
-                $insert_stmt->execute();
-
-                $assignment_id = $db->getLastInsertId();
-
-                // Save to history
-                $history_stmt = $db->prepare("
-                    INSERT INTO observer_history (exam_date, shift_id, section_id, teacher_id, assignment_id, action_type)
-                    VALUES (?, ?, ?, ?, ?, 'assigned')
-                ");
-                $history_stmt->bind_param("siiii", $exam_date, $shift_id, $section_id, $teacher_id, $assignment_id);
-                $history_stmt->execute();
-            }
-
-            sendSuccess('Assignments saved successfully', $data['assignments']);
-        }
-
-        // Preview mode
-        $preview = isset($data['preview']) ? (bool)$data['preview'] : false;
         
-        $result = generateAssignments($db, $exam_date, $shift_id, $preview);
+        $result = generateAssignments($db, $exam_date, $shift_id);
         
         if ($result['success']) {
             sendSuccess($result['message'], $result['assignments']);
