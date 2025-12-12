@@ -174,7 +174,7 @@ function generateAssignments($db, $exam_date, $shift_id) {
     }
     
     $sections_count = $shift_data['sections_count'];
-    $observers_needed = $sections_count * 2; // 2 observers per section
+    $observers_needed = $sections_count * 1; // 1 observer per section
     
     // Get available teachers
     $available_teachers = getAvailableTeachers($db, $exam_date, $shift_id);
@@ -214,7 +214,7 @@ function generateAssignments($db, $exam_date, $shift_id) {
     $stmt->bind_param("si", $exam_date, $shift_id);
     $stmt->execute();
     
-    // Assign 2 observers per section
+    // Assign 1 observer per section
     $assignments = [];
     $teacher_index = 0;
     
@@ -224,7 +224,7 @@ function generateAssignments($db, $exam_date, $shift_id) {
     ");
     
     foreach ($sections as $section_id) {
-        for ($obs = 0; $obs < 2; $obs++) {
+        for ($obs = 0; $obs < 1; $obs++) {
             if ($teacher_index >= count($available_teachers)) {
                 // If we run out, cycle back (shouldn't happen due to check above)
                 $teacher_index = 0;

@@ -24,7 +24,7 @@
 - [x] Shift 4: 1:30 PM - 21 sections (Stages 4 & 5)
 - [x] Shift 5: 3:00 PM - 10 sections (Evening only)
 - [x] Sections automatically created per shift
-- [x] 2 observers per section requirement
+- [x] 1 observer per section requirement
 
 ### 4. Teacher Management
 - [x] Add/Edit/Delete teachers
@@ -62,7 +62,7 @@
 - [x] Get all available teachers
 - [x] Apply all exclusion rules sequentially
 - [x] Random shuffle for fair assignment
-- [x] Assign exactly 2 observers per section
+- [x] Assign exactly 1 observer per section
 - [x] Prevent duplicate assignments in same shift
 - [x] Error handling for insufficient teachers
 - [x] Automatic section creation
@@ -177,7 +177,7 @@
 
 3. **Test Assignment Generation**
    - Generate assignments for each shift
-   - Verify 2 observers per section
+   - Verify 1 observer per section
    - Check for duplicates
    - Test with insufficient teachers
 

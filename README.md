@@ -122,7 +122,7 @@ The system includes the following tables:
 - The system will:
   - Apply all exclusion rules
   - Randomly assign available teachers
-  - Assign 2 observers per section
+  - Assign 1 observer per section
   - Display results or error if not enough teachers
 
 ### 5. Manual Exclusions

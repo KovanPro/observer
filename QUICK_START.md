@@ -49,7 +49,7 @@
 3. Click "Generate Assignments"
 4. System will automatically:
    - Apply all exclusion rules
-   - Assign 2 observers per section
+   - Assign 1 observer per section
    - Show results or error message
 
 ## Important Notes

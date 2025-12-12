@@ -881,11 +881,10 @@ async function exportAssignmentsExcel() {
         // Fill observers table starting at B13
         let currentRow = 13;
         Object.keys(sections).sort((a,b)=>a-b).forEach(sectionNum=>{
-            const [o1,o2] = sections[sectionNum];
+            const [o1] = sections[sectionNum];
 
             ws[`B${currentRow}`] = { ...ws[`B${currentRow}`], v: sectionNum };
             ws[`C${currentRow}`] = { ...ws[`C${currentRow}`], v: o1?.teacher_name || "-" };
-            ws[`D${currentRow}`] = { ...ws[`D${currentRow}`], v: o2?.teacher_name || "-" };
 
             currentRow++;
         });
@@ -941,15 +940,14 @@ async function exportAssignmentsExcel2() {
 
         // Prepare Observers sheet
         const observersSheet = [
-            ["Section", "Observer 1", "Observer 2"]
+            ["Section", "Observer"]
         ];
 
         Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
-            const [o1, o2] = sections[sectionNum];
+            const [o1] = sections[sectionNum];
             observersSheet.push([
                 sectionNum,
-                o1 ? o1.teacher_name : "-",
-                o2 ? o2.teacher_name : "-"
+                o1 ? o1.teacher_name : "-"
             ]);
         });
 
@@ -991,12 +989,12 @@ async function exportAssignmentsExcel2() {
 async function exportAssignmentsPdf() {
     const date = document.getElementById('assignment-date').value;
     const shiftId = document.getElementById('assignment-shift').value;
-    
+
     if (!date || !shiftId) {
         alert('Please select both date and shift');
         return;
     }
-    
+
     try {
         // Fetch assignments and exams for the selected date/shift
         const [assignments, examsData] = await Promise.all([
@@ -1017,17 +1015,14 @@ async function exportAssignmentsPdf() {
         
         let observersRows = '';
         Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
-            const [o1, o2] = sections[sectionNum];
+            const [o1] = sections[sectionNum];
             observersRows += `
                 <tr>
                     <td>${sectionNum}</td>
                     <td>${o1 ? o1.teacher_name : '-'}</td>
-                    <td>${o2 ? o2.teacher_name : '-'}</td>
                 </tr>
             `;
-        });
-        
-        // Build exams table (stage, subject, teachers)
+        });        // Build exams table (stage, subject, teachers)
         let examsRows = '';
         examsData.forEach(exam => {
             const teachersList = exam.teacher_names && exam.teacher_names.length
@@ -1182,11 +1177,10 @@ async function exportAssignmentsPdf() {
                 <tr>
                     <th>کەرت</th>
                     <th>چاقدێر</th>
-                    <th>چاقدێر</th>
                 </tr>
             </thead>
             <tbody>
-                ${observersRows || '<tr><td colspan="3" style="text-align:center;">No assignments</td></tr>'}
+                ${observersRows || '<tr><td colspan="2" style="text-align:center;">No assignments</td></tr>'}
             </tbody>
         </table>
         
@@ -1237,12 +1231,11 @@ async function exportAssignmentsPdf2() {
         
         let observersRows = '';
         Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
-            const [o1, o2] = sections[sectionNum];
+            const [o1] = sections[sectionNum];
             observersRows += `
                 <tr>
                     <td>${sectionNum}</td>
                     <td>${o1 ? o1.teacher_name : '-'}</td>
-                    <td>${o2 ? o2.teacher_name : '-'}</td>
                 </tr>
             `;
         });
@@ -1307,11 +1300,10 @@ async function exportAssignmentsPdf2() {
                         <tr>
                             <th>کەرت</th>
                             <th> چاڤدێر</th>
-                            <th> چاڤدێر</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${observersRows || '<tr><td colspan="3">No assignments</td></tr>'}
+                        ${observersRows || '<tr><td colspan="2">No assignments</td></tr>'}
                     </tbody>
                 </table>
                 
