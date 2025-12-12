@@ -842,6 +842,151 @@ function printAssignments() {
     window.print();
 }
 
+async function exportAssignmentsExcel() {
+    const date = document.getElementById('assignment-date').value;
+    const shiftId = document.getElementById('assignment-shift').value;
+
+    if (!date || !shiftId) {
+        alert('Please select both date and shift');
+        return;
+    }
+
+    try {
+        // Load template.xlsx from same folder
+        const resp = await fetch('./template.xlsx');
+        if (!resp.ok) throw new Error('Could not load template.xlsx');
+        const arrayBuffer = await resp.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+        // --- OBSERVERS SHEET ---
+        const ws = workbook.Sheets[workbook.SheetNames[0]];
+
+        // Write date and shift number while keeping styles
+        ws["C9"]  = { ...ws["C9"], v: date };
+        ws["C11"] = { ...ws["C11"], v: shiftId };
+
+        // Fetch assignments and exams (JSON expected)
+        const [assignments, examsData] = await Promise.all([
+            fetchData(`assignments.php?date=${date}&shift_id=${shiftId}`),
+            fetchData(`exams.php?date=${date}&shift_id=${shiftId}`)
+        ]);
+
+        // Build sections map
+        const sections = {};
+        assignments.forEach(a => {
+            if (!sections[a.section_number]) sections[a.section_number] = [];
+            sections[a.section_number].push(a);
+        });
+
+        // Fill observers table starting at B13
+        let currentRow = 13;
+        Object.keys(sections).sort((a,b)=>a-b).forEach(sectionNum=>{
+            const [o1,o2] = sections[sectionNum];
+
+            ws[`B${currentRow}`] = { ...ws[`B${currentRow}`], v: sectionNum };
+            ws[`C${currentRow}`] = { ...ws[`C${currentRow}`], v: o1?.teacher_name || "-" };
+            ws[`D${currentRow}`] = { ...ws[`D${currentRow}`], v: o2?.teacher_name || "-" };
+
+            currentRow++;
+        });
+
+        // --- EXAMS SHEET ---
+        let examsSheet;
+        if (workbook.SheetNames.length > 1) {
+            examsSheet = workbook.Sheets[workbook.SheetNames[1]];
+        } else {
+            examsSheet = XLSX.utils.aoa_to_sheet([]);
+            XLSX.utils.book_append_sheet(workbook, examsSheet, "Exams");
+        }
+
+        // Fill exams starting from row 2 (assuming headers in row 1)
+        let row = 2;
+        examsData.forEach(exam=>{
+            examsSheet[`A${row}`] = { ...examsSheet[`A${row}`], v: exam.stage_name || "-" };
+            examsSheet[`B${row}`] = { ...examsSheet[`B${row}`], v: exam.subject_name || "-" };
+            examsSheet[`C${row}`] = { ...examsSheet[`C${row}`], v: exam.teacher_names?.join(", ") || "-" };
+            row++;
+        });
+
+        // Export final file
+        XLSX.writeFile(workbook, `assignments_${date}_shift${shiftId}.xlsx`);
+
+    } catch (err) {
+        console.error("Excel export error:", err);
+        alert("Error exporting Excel: " + err.message);
+    }
+}
+
+async function exportAssignmentsExcel2() {
+    const date = document.getElementById('assignment-date').value;
+    const shiftId = document.getElementById('assignment-shift').value;
+
+    if (!date || !shiftId) {
+        alert('Please select both date and shift');
+        return;
+    }
+
+    try {
+        const [assignments, examsData] = await Promise.all([
+            fetchData(`assignments.php?date=${date}&shift_id=${shiftId}`),
+            fetchData(`exams.php?date=${date}&shift_id=${shiftId}`)
+        ]);
+
+        // Build sections map
+        const sections = {};
+        assignments.forEach(a => {
+            if (!sections[a.section_number]) sections[a.section_number] = [];
+            sections[a.section_number].push(a);
+        });
+
+        // Prepare Observers sheet
+        const observersSheet = [
+            ["Section", "Observer 1", "Observer 2"]
+        ];
+
+        Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
+            const [o1, o2] = sections[sectionNum];
+            observersSheet.push([
+                sectionNum,
+                o1 ? o1.teacher_name : "-",
+                o2 ? o2.teacher_name : "-"
+            ]);
+        });
+
+        // Prepare Exams sheet
+        const examsSheet = [
+            ["Stage", "Subject", "Teachers"]
+        ];
+
+        examsData.forEach(exam => {
+            examsSheet.push([
+                exam.stage_name || "-",
+                exam.subject_name || "-",
+                exam.teacher_names && exam.teacher_names.length ? exam.teacher_names.join(", ") : "-"
+            ]);
+        });
+
+        // Create Workbook
+        const wb = XLSX.utils.book_new();
+
+        // Convert sheets
+        const observersWS = XLSX.utils.aoa_to_sheet(observersSheet);
+        const examsWS = XLSX.utils.aoa_to_sheet(examsSheet);
+
+        // Add sheets to workbook
+        XLSX.utils.book_append_sheet(wb, observersWS, "Observers");
+        XLSX.utils.book_append_sheet(wb, examsWS, "Exams");
+
+        // Export as real XLSX file
+        XLSX.writeFile(wb, `assignments_${date}_shift${shiftId}.xlsx`);
+
+    } catch (error) {
+        console.error("Excel Export Error:", error);
+        alert("Error exporting Excel: " + error.message);
+    }
+}
+
+
 // Export assignments to PDF (via print dialog) with logo and exam details
 async function exportAssignmentsPdf() {
     const date = document.getElementById('assignment-date').value;
@@ -860,7 +1005,227 @@ async function exportAssignmentsPdf() {
         ]);
         
         const shift = shifts.find(s => s.shift_id == shiftId) || {};
-        const shiftLabel = shift.shift_number ? `Shift ${shift.shift_number}` : `Shift ${shiftId}`;
+        const shiftLabel = shift.shift_number ? `گەرا ${shift.shift_number}` : `گەرا ${shiftId}`;
+        const shiftTime = shift.shift_time || '';
+        
+        // Build observers table grouped by section
+        const sections = {};
+        assignments.forEach(a => {
+            if (!sections[a.section_number]) sections[a.section_number] = [];
+            sections[a.section_number].push(a);
+        });
+        
+        let observersRows = '';
+        Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
+            const [o1, o2] = sections[sectionNum];
+            observersRows += `
+                <tr>
+                    <td>${sectionNum}</td>
+                    <td>${o1 ? o1.teacher_name : '-'}</td>
+                    <td>${o2 ? o2.teacher_name : '-'}</td>
+                </tr>
+            `;
+        });
+        
+        // Build exams table (stage, subject, teachers)
+        let examsRows = '';
+        examsData.forEach(exam => {
+            const teachersList = exam.teacher_names && exam.teacher_names.length
+                ? exam.teacher_names.join(', ')
+                : '-';
+            examsRows += `
+                <tr>
+                    <td>${exam.stage_name || '-'}</td>
+                    <td>${exam.subject_name || '-'}</td>
+                    <td>${teachersList}</td>
+                </tr>
+            `;
+        });
+        
+        // Simple inline SVG logo (placeholder). Replace href with real logo if available.
+        const logoSvg = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="140" height="40" viewBox="0 0 140 40">
+              <rect rx="8" ry="8" width="140" height="40" fill="#667eea"/>
+              <text x="70" y="25" font-size="16" font-family="Arial" fill="white" text-anchor="middle">Institute</text>
+            </svg>
+        `);
+        
+        html = `
+    <!DOCTYPE html>
+    <html lang="ku" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>Observers - ${date} ${shiftLabel}</title>
+        <style>
+            @page { size: A4; margin: 10mm; }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                color: #000;
+                margin: 0;
+                padding: 10px;
+                text-align: right;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            .logo-container {
+                margin: 0 auto;
+                width: 120px; /* Size for the logo container */
+                height: 90px;
+            }
+            .logo-container img {
+                height: 100%; 
+                width: 100%; 
+                object-fit: contain;
+            }
+            .brand-english {
+                font-family: 'Times New Roman', Times, serif;
+                text-transform: uppercase;
+                line-height: 1.2;
+            }
+            .brand-name {
+                font-size: 32px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                margin: 0;
+            }
+            .brand-sub {
+                font-size: 14px;
+                letter-spacing: 4px;
+                margin: 0;
+            }
+            .kurdish-titles {
+                margin-top: 10px;
+                font-weight: bold;
+            }
+            .kurdish-main {
+                font-size: 18px;
+                margin: 2px 0;
+            }
+            .kurdish-sub {
+                font-size: 14px;
+                margin: 2px 0;
+                font-weight: normal;
+            }
+            .report-title {
+                font-size: 18px;
+                text-decoration: underline;
+                margin-top: 15px;
+                font-weight: bold;
+            }
+            
+            /* Info Row (Date / Shift) - Replaces .meta */
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                width: 90%;
+                margin: 20px auto 10px auto;
+                font-weight: bold;
+                font-size: 16px;
+                padding-bottom: 5px;
+            }
+            
+            /* Table Styling */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 5px;
+            }
+            th, td {
+                border: 1px solid #000; /* Black solid border for PDF look */
+                padding: 6px 8px;
+                text-align: right; /* RTL alignment */
+                font-size: 14px;
+            }
+            th {
+                background-color: #f2f2f2; /* Light gray header */
+                text-align: center;
+                font-weight: bold;
+            }
+            .section-cell {
+                text-align: center;
+                width: 50px;
+                font-weight: bold;
+            }
+            
+            @media print {
+                /* Ensure background color prints */
+                th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
+                body { margin: 10mm; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo-container">
+                <img src="${logoSvg}" alt="Institute Logo" />
+            </div>
+            <div class="brand-english">
+                <div class="brand-name">RAND</div>
+                <div class="brand-sub">INSTITUTE</div>
+            </div>
+            <div class="kurdish-titles">
+                <div class="kurdish-main">پەیمانگەها رەند یا ناحکومی</div>
+                <div class="kurdish-sub">ئەزمونێن تیوری وەرزی ئێکی سالا خواندنی (٢٠٢٥ - ٢٠٢٦)</div>
+                <div class="report-title">چاقدێرێن ئەزمونان</div>
+            </div>
+        </div>
+
+        <div class="info-row">
+            <span>${shiftLabel}${shiftTime ? ' (' + shiftTime + ')' : ''}</span>
+            <span>بەرواری: ${date}</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>کەرت</th>
+                    <th>چاقدێر</th>
+                    <th>چاقدێر</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${observersRows || '<tr><td colspan="3" style="text-align:center;">No assignments</td></tr>'}
+            </tbody>
+        </table>
+        
+    </body>
+    </html>
+`;
+        
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert('Popup blocked. Please allow popups for this site to export PDF.');
+            return;
+        }
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        win.print();
+    } catch (error) {
+        console.error('Error exporting PDF:', error);
+        alert('Error exporting PDF: ' + error.message);
+    }
+}
+async function exportAssignmentsPdf2() {
+    const date = document.getElementById('assignment-date').value;
+    const shiftId = document.getElementById('assignment-shift').value;
+    
+    if (!date || !shiftId) {
+        alert('Please select both date and shift');
+        return;
+    }
+    
+    try {
+        // Fetch assignments and exams for the selected date/shift
+        const [assignments, examsData] = await Promise.all([
+            fetchData(`assignments.php?date=${date}&shift_id=${shiftId}`),
+            fetchData(`exams.php?date=${date}&shift_id=${shiftId}`)
+        ]);
+        
+        const shift = shifts.find(s => s.shift_id == shiftId) || {};
+        const shiftLabel = shift.shift_number ? `گەرا ${shift.shift_number}` : `گەرا ${shiftId}`;
         const shiftTime = shift.shift_time || '';
         
         // Build observers table grouped by section
@@ -927,7 +1292,7 @@ async function exportAssignmentsPdf() {
                 <div class="header">
                     <img src="${logoSvg}" alt="Institute Logo" />
                     <div>
-                        <p class="title">Observer Assignment Sheet</p>
+                        <p class="title">چاڤدێرێن کەرتان</p>
                         <p class="subtitle">${shiftLabel}${shiftTime ? ' · ' + shiftTime : ''}</p>
                     </div>
                 </div>
@@ -936,13 +1301,13 @@ async function exportAssignmentsPdf() {
                     <div><strong>Shift:</strong> ${shiftLabel}${shiftTime ? ' (' + shiftTime + ')' : ''}</div>
                 </div>
                 
-                <div class="section-title">Observers per Section</div>
+                <div class="section-title">چاڤدێرێن کەرتان</div>
                 <table>
                     <thead>
                         <tr>
-                            <th>Section</th>
-                            <th>Observer 1</th>
-                            <th>Observer 2</th>
+                            <th>کەرت</th>
+                            <th> چاڤدێر</th>
+                            <th> چاڤدێر</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -969,6 +1334,8 @@ async function exportAssignmentsPdf() {
         alert('Error exporting PDF: ' + error.message);
     }
 }
+ // Function definition (Pure JavaScript)
+ 
 // Exclusions
 async function loadExclusions() {
     try {

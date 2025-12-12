@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exam Observer Assignment Management System</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
 <body>
     <div class="container">
         <header>
@@ -158,10 +162,12 @@
                         <tbody></tbody>
                     </table>
                 </div>
+
                 <div class="export-section">
                     <button class="btn btn-secondary" onclick="exportAssignments()">Export to CSV</button>
                     <button class="btn btn-secondary" onclick="printAssignments()">Print</button>
                     <button class="btn btn-primary" onclick="exportAssignmentsPdf()">Export to PDF</button>
+                    <button class="btn btn-primary" onclick="exportAssignmentsExcel()">Export to excle</button>
                 </div>
             </div>
 
