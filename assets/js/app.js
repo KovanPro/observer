@@ -582,7 +582,15 @@ async function loadExams() {
         alert('Error loading exams: ' + error.message);
     }
 }
+function filterSubjects() {
+    const filterValue = (document.getElementById('subject-filter')?.value || "").toLowerCase();
+    const select = document.getElementById('exam-subject');
 
+    Array.from(select.options).forEach(opt => {
+        const text = opt.textContent.toLowerCase();
+        opt.style.display = text.includes(filterValue) ? "" : "none";
+    });
+}
 async function loadSubjectsForExam() {
     const examSubjectSelect = document.getElementById('exam-subject');
     examSubjectSelect.innerHTML = '<option value="">Select Subject</option>';
@@ -600,25 +608,65 @@ async function loadSubjectsForExam() {
     }
 }
 
+// function openExamModal(examId = null) {
+//     document.getElementById('exam-id').value = examId || '';
+//     document.getElementById('exam-date').value = '';
+//     document.getElementById('exam-shift').value = '';
+//     document.getElementById('exam-modal-title').textContent = examId ? 'Edit Exam' : 'Add Exam';
+    
+//     loadSubjectsForExam();
+    
+//     if (examId) {
+//         const exam = exams.find(e => e.exam_id == examId);
+//         if (exam) {
+//             document.getElementById('exam-date').value = exam.exam_date;
+//             document.getElementById('exam-shift').value = exam.shift_id;
+//             setTimeout(() => {
+//                 document.getElementById('exam-subject').value = exam.subject_id;
+//             }, 100);
+//         }
+//     }
+    
+//     document.getElementById('exam-modal').style.display = 'block';
+// }
 function openExamModal(examId = null) {
     document.getElementById('exam-id').value = examId || '';
     document.getElementById('exam-date').value = '';
     document.getElementById('exam-shift').value = '';
     document.getElementById('exam-modal-title').textContent = examId ? 'Edit Exam' : 'Add Exam';
-    
-    loadSubjectsForExam();
-    
-    if (examId) {
-        const exam = exams.find(e => e.exam_id == examId);
-        if (exam) {
-            document.getElementById('exam-date').value = exam.exam_date;
-            document.getElementById('exam-shift').value = exam.shift_id;
-            setTimeout(() => {
-                document.getElementById('exam-subject').value = exam.subject_id;
-            }, 100);
-        }
+
+    // --- Add filter input above subject dropdown (JS ONLY) ---
+    const subjectSelect = document.getElementById('exam-subject');
+    let filterInput = document.getElementById('subject-filter');
+
+    if (!filterInput) {
+        filterInput = document.createElement('input');
+        filterInput.id = "subject-filter";
+        filterInput.placeholder = "Search subject...";
+        filterInput.style.margin = "5px 0";
+
+        // Insert filter input before subject dropdown
+        subjectSelect.parentNode.insertBefore(filterInput, subjectSelect);
+
+        // Add filter event
+        filterInput.addEventListener('input', filterSubjects);
     }
-    
+
+    // Load subjects
+    loadSubjectsForExam().then(() => {
+        if (examId) {
+            const exam = exams.find(e => e.exam_id == examId);
+            if (exam) {
+                document.getElementById('exam-date').value = exam.exam_date;
+                document.getElementById('exam-shift').value = exam.shift_id;
+
+                setTimeout(() => {
+                    document.getElementById('exam-subject').value = exam.subject_id;
+                }, 100);
+            }
+        }
+    });
+
     document.getElementById('exam-modal').style.display = 'block';
 }
 
@@ -902,19 +950,7 @@ async function exportAssignmentsPdf() {
                     </tbody>
                 </table>
                 
-                <div class="section-title">Exams in this Shift</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Stage</th>
-                            <th>Subject</th>
-                            <th>Teachers</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${examsRows || '<tr><td colspan="3">No exams scheduled</td></tr>'}
-                    </tbody>
-                </table>
+
             </body>
             </html>
         `;

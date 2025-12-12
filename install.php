@@ -2,8 +2,8 @@
 /**
  * Installation Helper Script
  * Run this once to set up the database
- */
-
+ ReySDtCs2Rk6t5
+*/ 
 require_once 'config/database.php';
 
 echo "<!DOCTYPE html>
