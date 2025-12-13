@@ -13,15 +13,15 @@
 <body>
     <div class="container">
         <header>
-            <h1>📋 Exam Observer Assignment Management System</h1>
+            <h1>📋 سیستەمێ دانانا چاڤدێران پەیمانگەها ڕەند</h1>
             <nav class="main-nav">
-                <button class="nav-btn active" data-page="dashboard">Dashboard</button>
-                <button class="nav-btn" data-page="teachers">Teachers</button>
-                <button class="nav-btn" data-page="subjects">Subjects</button>
-                <button class="nav-btn" data-page="exams">Exams</button>
-                <button class="nav-btn" data-page="assignments">Assignments</button>
-                <button class="nav-btn" data-page="exclusions">Exclusions</button>
-                <button class="nav-btn" data-page="history">History</button>
+                <button class="nav-btn active" data-page="dashboard">پەرێ سەرەکی</button>
+                <button class="nav-btn" data-page="teachers">ماموستا</button>
+                <button class="nav-btn" data-page="subjects">بابەت</button>
+                <button class="nav-btn" data-page="exams">ئەزمون</button>
+                <button class="nav-btn" data-page="assignments">چاڤدێر</button>
+                <button class="nav-btn" data-page="exclusions">بهێنڤەدان</button>
+                <button class="nav-btn" data-page="history">مێژو</button>
             </nav>
         </header>
 
@@ -31,27 +31,27 @@
                 <h2>Dashboard</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <h3>Total Teachers</h3>
+                        <h3>ژمارا ماموستایا</h3>
                         <p id="stat-teachers">-</p>
                     </div>
                     <div class="stat-card">
-                        <h3>Total Subjects</h3>
+                        <h3>ژامرا بابەتا</h3>
                         <p id="stat-subjects">-</p>
                     </div>
                     <div class="stat-card">
-                        <h3>Upcoming Exams</h3>
+                        <h3>ئەزمونێت بهێن</h3>
                         <p id="stat-exams">-</p>
                     </div>
                     <div class="stat-card">
-                        <h3>Active Assignments</h3>
+                        <h3>چاڤدێری</h3>
                         <p id="stat-assignments">-</p>
                     </div>
                 </div>
                 <div class="quick-actions">
-                    <h3>Quick Actions</h3>
-                    <button class="btn btn-primary" onclick="showPage('assignments')">Generate Assignments</button>
-                    <button class="btn btn-secondary" onclick="showPage('exams')">Add New Exam</button>
-                    <button class="btn btn-secondary" onclick="showPage('teachers')">Add New Teacher</button>
+                    <h3>کریارێن ب لەز</h3>
+                    <button class="btn btn-primary" onclick="showPage('assignments')">دانانا چڤدێران</button>
+                    <button class="btn btn-secondary" onclick="showPage('exams')"> زێدەکرنا ئەزمونان</button>
+                    <button class="btn btn-secondary" onclick="showPage('teachers')">زێدەکرنا ماموستایان</button>
                 </div>
             </div>
 
@@ -110,7 +110,24 @@
                 <h2>Exams Management</h2>
                 <div class="page-header">
                     <button class="btn btn-primary" onclick="openExamModal()">+ Add Exam</button>
-                    <input type="date" id="filter-exam-date" onchange="loadExams()">
+                    <div class="filters">
+                        <div class="form-group">
+                            <label>بەروار:</label>
+                            <input type="date" id="filter-exam-date" onchange="loadExams()">
+                        </div>
+                        <div class="form-group">
+                            <label>گەر:</label>
+                            <select id="filter-exam-shift" onchange="loadExams()">
+                                <option value="">هەموو گەرەکان</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>بەش:</label>
+                            <select id="filter-exam-dept" onchange="loadExams()">
+                                <option value="">هەموو بەشەکان</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table id="exams-table">
@@ -133,39 +150,38 @@
 
             <!-- Assignments Page -->
             <div id="assignments" class="page">
-                <h2>Observer Assignments</h2>
+                <h2>دانانا چاڤدێران</h2>
                 <div class="assignment-controls">
                     <div class="form-group">
-                        <label>Exam Date:</label>
+                        <label>  بەروارا ئەزمونێ :</label>
                         <input type="date" id="assignment-date" required>
                     </div>
                     <div class="form-group">
-                        <label>Shift:</label>
+                        <label>گەر:</label>
                         <select id="assignment-shift" required>
-                            <option value="">Select Shift</option>
+                            <option value="">گەرێ ب هەلبژێرە</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary" onclick="generateAssignments()">Generate Assignments</button>
-                    <button class="btn btn-danger" onclick="deleteAssignments()">Delete Assignments</button>
+                    <button class="btn btn-primary" onclick="generateAssignments()">دانانا چاڤدێرا</button>
+                    <button class="btn btn-danger" onclick="deleteAssignments()"> ژێبرنا چاڤدێرا</button>
                 </div>
                 <div id="assignment-result"></div>
                 <div class="table-container">
                     <table id="assignments-table">
                         <thead>
                             <tr>
-                                <th>Shift</th>
-                                <th>Section</th>
-                                <th>Observer 1</th>
-                                <th>Observer 2</th>
-                            </tr>
+                                <th>گەر</th>
+                                <th>کەرت</th>
+                                <th>چاڤدێر</th>
+                             </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
                 </div>
 
                 <div class="export-section">
-                    <button class="btn btn-secondary" onclick="exportAssignments()">Export to CSV</button>
-                    <button class="btn btn-secondary" onclick="printAssignments()">Print</button>
+                    <!-- <button class="btn btn-secondary" onclick="exportAssignments()">Export to CSV</button> -->
+                    <!-- <button class="btn btn-secondary" onclick="printAssignments()">Print</button> -->
                     <button class="btn btn-primary" onclick="exportAssignmentsPdf()">Export to PDF</button>
                     <button class="btn btn-primary" onclick="exportAssignmentsExcel()">Export to excle</button>
                 </div>
@@ -173,20 +189,20 @@
 
             <!-- Exclusions Page -->
             <div id="exclusions" class="page">
-                <h2>Manual Exclusions</h2>
+                <h2>بهێن ڤەدان</h2>
                 <div class="page-header">
-                    <button class="btn btn-primary" onclick="openExclusionModal()">+ Add Exclusion</button>
+                    <button class="btn btn-primary" onclick="openExclusionModal()">زێدەکرن بو لیستا بهێنڤەدانێ</button>
                 </div>
                 <div class="table-container">
                     <table id="exclusions-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Teacher</th>
-                                <th>Date</th>
-                                <th>Shift</th>
-                                <th>Reason</th>
-                                <th>Actions</th>
+                                <th>ماموستا</th>
+                                <th>بەروار</th>
+                                <th>گەر</th>
+                                <th>ئەگەر</th>
+                                <th>کردار</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -207,12 +223,12 @@
                     <table id="history-table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Shift</th>
-                                <th>Section</th>
-                                <th>Teacher</th>
-                                <th>Action</th>
-                                <th>Time</th>
+                                <th>بەروار</th>
+                                <th>گەر</th>
+                                <th>کەرت</th>
+                                <th>ماموستا</th>
+                                <th>کردار</th>
+                                <th>دەم</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -253,27 +269,27 @@
     <div id="subject-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('subject-modal')">&times;</span>
-            <h2 id="subject-modal-title">Add Subject</h2>
+            <h2 id="subject-modal-title">زێدەکرنا بابەتی </h2>
             <form id="subject-form">
                 <input type="hidden" id="subject-id">
                 <div class="form-group">
-                    <label>Subject Name:</label>
+                    <label>ناڤێ بابەتی  :</label>
                     <input type="text" id="subject-name" required>
                 </div>
                 <div class="form-group">
-                    <label>Department:</label>
+                    <label>بەش:</label>
                     <select id="subject-dept" required onchange="loadStagesForSubject()">
-                        <option value="">Select Department</option>
+                        <option value="">بەشی ب هەلبژێرە</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Stage:</label>
+                    <label>گوناغ:</label>
                     <select id="subject-stage" required>
-                        <option value="">Select Stage</option>
+                        <option value="">قوناغێ ب هەلبژێرە</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Teachers:</label>
+                    <label>ماموستا:</label>
                     <div id="subject-teachers"></div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
@@ -286,23 +302,35 @@
     <div id="exam-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('exam-modal')">&times;</span>
-            <h2 id="exam-modal-title">Add Exam</h2>
+            <h2 id="exam-modal-title">زێدەکرنا ئەزمونێ</h2>
             <form id="exam-form">
                 <input type="hidden" id="exam-id">
                 <div class="form-group">
-                    <label>Exam Date:</label>
+                    <label>بەروارا ئەزمونێ:</label>
                     <input type="date" id="exam-date" required>
                 </div>
                 <div class="form-group">
-                    <label>Shift:</label>
+                    <label>گەر:</label>
                     <select id="exam-shift" required>
-                        <option value="">Select Shift</option>
+                        <option value="">گەرا : </option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Subject:</label>
+                    <label>بەش:</label>
+                    <select id="exam-department" required onchange="loadStagesForExam()">
+                        <option value="">بەشی ب هەلبژێرە</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>قۆناغ:</label>
+                    <select id="exam-stage" required onchange="loadSubjectsForExam()">
+                        <option value="">قۆناغی ب هەلبژێرە</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>بابەت:</label>
                     <select id="exam-subject" required>
-                        <option value="">Select Subject</option>
+                        <option value="">بابەتی ب هەلبژێرە</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
@@ -315,27 +343,27 @@
     <div id="exclusion-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('exclusion-modal')">&times;</span>
-            <h2>Add Manual Exclusion</h2>
+            <h2>فورما زێدەکرنا ب‌هێنڤەدانێ</h2>
             <form id="exclusion-form">
                 <input type="hidden" id="exclusion-id">
                 <div class="form-group">
-                    <label>Teacher:</label>
+                    <label>ماموستا:</label>
                     <select id="exclusion-teacher" required>
-                        <option value="">Select Teacher</option>
+                        <option value="">ماموستای هەلبژێرە</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Date:</label>
+                    <label>بەروار:</label>
                     <input type="date" id="exclusion-date" required>
                 </div>
                 <div class="form-group">
-                    <label>Shift:</label>
+                    <label>گەر:</label>
                     <select id="exclusion-shift" required>
-                        <option value="">Select Shift</option>
+                        <option value=""> گەرا ئەزمونێ ب هەلبژێرە </option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Reason:</label>
+                    <label>ئەگەر:</label>
                     <textarea id="exclusion-reason"></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>

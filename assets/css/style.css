@@ -83,6 +83,39 @@ main {
     flex-wrap: wrap;
 }
 
+.filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+        /* display: contents; */
+
+}
+
+.filters .form-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.filters .form-group label {
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: 60px;
+}
+
+.filters .form-group select,
+.filters .form-group input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 120px;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -155,6 +188,15 @@ main {
 
 .btn-danger:hover {
     background: #c82333;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
 }
 
 .table-container {

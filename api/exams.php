@@ -14,6 +14,7 @@ switch ($method) {
         $exam_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
         $exam_date = isset($_GET['date']) ? $db->escape($_GET['date']) : null;
         $shift_id = isset($_GET['shift_id']) ? (int)$_GET['shift_id'] : null;
+        $dept_id = isset($_GET['dept_id']) ? (int)$_GET['dept_id'] : null;
         
         if ($exam_id) {
             // Get single exam
@@ -77,6 +78,12 @@ switch ($method) {
             if ($shift_id) {
                 $sql .= " AND e.shift_id = ?";
                 $params[] = $shift_id;
+                $types .= "i";
+            }
+            
+            if ($dept_id) {
+                $sql .= " AND e.dept_id = ?";
+                $params[] = $dept_id;
                 $types .= "i";
             }
             

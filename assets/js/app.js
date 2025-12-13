@@ -331,11 +331,11 @@ async function loadSubjects() {
 
 function populateSelects() {
     // Populate department filters
-    const deptSelects = ['filter-dept', 'subject-dept', 'exam-subject'];
+    const deptSelects = ['filter-dept', 'subject-dept', 'exam-subject', 'filter-exam-dept'];
     deptSelects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (select) {
-            select.innerHTML = '<option value="">Select Department</option>';
+            select.innerHTML = '<option value="">All Departments</option>';
             departments.forEach(dept => {
                 const option = document.createElement('option');
                 option.value = dept.dept_id;
@@ -345,19 +345,18 @@ function populateSelects() {
         }
     });
     
-    // Populate stage filter (for Subjects page)
-    populateStageFilterOptions();
-    
-    // Populate shift selects
-    const shiftSelects = ['assignment-shift', 'exam-shift', 'exclusion-shift', 'history-shift'];
+    // Populate shift filters
+    const shiftSelects = ['assignment-shift', 'filter-exam-shift', 'exam-shift', 'exclusion-shift', 'history-shift'];
     shiftSelects.forEach(selectId => {
         const select = document.getElementById(selectId);
         if (select) {
-            const firstOption = select.querySelector('option[value=""]') || document.createElement('option');
-            firstOption.value = '';
-            firstOption.textContent = selectId === 'history-shift' ? 'All Shifts' : 'Select Shift';
-            select.innerHTML = '';
-            select.appendChild(firstOption);
+            if (selectId === 'filter-exam-shift') {
+                select.innerHTML = '<option value="">All Shifts</option>';
+            } else if (selectId === 'history-shift') {
+                select.innerHTML = '<option value="">All Shifts</option>';
+            } else {
+                select.innerHTML = '<option value="">Select Shift</option>';
+            }
             shifts.forEach(shift => {
                 const option = document.createElement('option');
                 option.value = shift.shift_id;
@@ -366,6 +365,9 @@ function populateSelects() {
             });
         }
     });
+    
+    // Populate stage filter (for Subjects page)
+    populateStageFilterOptions();
 }
 
 // Populate the stage filter dropdown based on selected department (or all)
@@ -554,8 +556,15 @@ async function deleteSubject(subjectId) {
 async function loadExams() {
     try {
         const examDate = document.getElementById('filter-exam-date').value;
+        const examShift = document.getElementById('filter-exam-shift').value;
+        const examDept = document.getElementById('filter-exam-dept').value;
+        
         let url = 'exams.php';
-        if (examDate) url += `?date=${examDate}`;
+        const params = [];
+        if (examDate) params.push(`date=${examDate}`);
+        if (examShift) params.push(`shift_id=${examShift}`);
+        if (examDept) params.push(`dept_id=${examDept}`);
+        if (params.length > 0) url += '?' + params.join('&');
         
         exams = await fetchData(url);
         const tbody = document.querySelector('#exams-table tbody');
@@ -573,6 +582,7 @@ async function loadExams() {
                 <td>${exam.is_evening ? 'Yes' : 'No'}</td>
                 <td>
                     <button class="btn btn-secondary" onclick="editExam(${exam.exam_id})">Edit</button>
+                    <button class="btn btn-info" onclick="duplicateExam(${exam.exam_id})">Duplicate</button>
                     <button class="btn btn-danger" onclick="deleteExam(${exam.exam_id})">Delete</button>
                 </td>
             `;
@@ -592,19 +602,48 @@ function filterSubjects() {
     });
 }
 async function loadSubjectsForExam() {
+    const deptId = document.getElementById('exam-department').value;
+    const stageId = document.getElementById('exam-stage').value;
     const examSubjectSelect = document.getElementById('exam-subject');
-    examSubjectSelect.innerHTML = '<option value="">Select Subject</option>';
+    examSubjectSelect.innerHTML = '<option value="">بابەتی ب هەلبژێرە</option>';
+    
+    if (!deptId || !stageId) {
+        return;
+    }
     
     try {
-        const subjectsData = await fetchData('subjects.php');
+        const subjectsData = await fetchData(`subjects.php?dept_id=${deptId}&stage_id=${stageId}`);
         subjectsData.forEach(subject => {
             const option = document.createElement('option');
             option.value = subject.subject_id;
-            option.textContent = `${subject.subject_name} (${subject.dept_name} - ${subject.stage_name})`;
+            option.textContent = subject.subject_name;
             examSubjectSelect.appendChild(option);
         });
     } catch (error) {
         console.error('Error loading subjects:', error);
+    }
+}
+
+async function loadStagesForExam() {
+    const deptId = document.getElementById('exam-department').value;
+    const stageSelect = document.getElementById('exam-stage');
+    stageSelect.innerHTML = '<option value="">قۆناغی ب هەلبژێرە</option>';
+    document.getElementById('exam-subject').innerHTML = '<option value="">بابەتی ب هەلبژێرە</option>';
+    
+    if (!deptId) {
+        return;
+    }
+    
+    try {
+        const stagesData = await fetchData(`stages.php?dept_id=${deptId}`);
+        stagesData.forEach(stage => {
+            const option = document.createElement('option');
+            option.value = stage.stage_id;
+            option.textContent = stage.stage_name;
+            stageSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading stages:', error);
     }
 }
 
@@ -629,43 +668,44 @@ async function loadSubjectsForExam() {
     
 //     document.getElementById('exam-modal').style.display = 'block';
 // }
-function openExamModal(examId = null) {
+function openExamModal(examId = null, duplicateData = null) {
     document.getElementById('exam-id').value = examId || '';
     document.getElementById('exam-date').value = '';
     document.getElementById('exam-shift').value = '';
-    document.getElementById('exam-modal-title').textContent = examId ? 'Edit Exam' : 'Add Exam';
+    document.getElementById('exam-modal-title').textContent = examId ? 'Edit Exam' : (duplicateData ? 'Duplicate Exam' : 'Add Exam');
 
-    // --- Add filter input above subject dropdown (JS ONLY) ---
-    const subjectSelect = document.getElementById('exam-subject');
-    let filterInput = document.getElementById('subject-filter');
-
-    if (!filterInput) {
-        filterInput = document.createElement('input');
-        filterInput.id = "subject-filter";
-        filterInput.placeholder = "Search subject...";
-        filterInput.style.margin = "5px 0";
-
-        // Insert filter input before subject dropdown
-        subjectSelect.parentNode.insertBefore(filterInput, subjectSelect);
-
-        // Add filter event
-        filterInput.addEventListener('input', filterSubjects);
-    }
-
-    // Load subjects
-    loadSubjectsForExam().then(() => {
-        if (examId) {
-            const exam = exams.find(e => e.exam_id == examId);
-            if (exam) {
-                document.getElementById('exam-date').value = exam.exam_date;
-                document.getElementById('exam-shift').value = exam.shift_id;
-
-                setTimeout(() => {
-                    document.getElementById('exam-subject').value = exam.subject_id;
-                }, 100);
-            }
-        }
+    // Populate department select
+    const deptSelect = document.getElementById('exam-department');
+    deptSelect.innerHTML = '<option value="">بەشی ب هەلبژێرە</option>';
+    departments.forEach(dept => {
+        const option = document.createElement('option');
+        option.value = dept.dept_id;
+        option.textContent = dept.dept_name;
+        deptSelect.appendChild(option);
     });
+
+    // Reset stage and subject selects
+    document.getElementById('exam-stage').innerHTML = '<option value="">قۆناغی ب هەلبژێرە</option>';
+    document.getElementById('exam-subject').innerHTML = '<option value="">بابەتی ب هەلبژێرە</option>';
+
+    if (examId || duplicateData) {
+        const exam = duplicateData || exams.find(e => e.exam_id == examId);
+        if (exam) {
+            document.getElementById('exam-date').value = exam.exam_date;
+            document.getElementById('exam-shift').value = exam.shift_id;
+
+            // Set department, stage, subject
+            setTimeout(() => {
+                document.getElementById('exam-department').value = exam.dept_id;
+                loadStagesForExam().then(() => {
+                    document.getElementById('exam-stage').value = exam.stage_id;
+                    loadSubjectsForExam().then(() => {
+                        document.getElementById('exam-subject').value = exam.subject_id;
+                    });
+                });
+            }, 100);
+        }
+    }
 
     document.getElementById('exam-modal').style.display = 'block';
 }
@@ -704,6 +744,13 @@ async function saveExam(e) {
 
 function editExam(examId) {
     openExamModal(examId);
+}
+
+function duplicateExam(examId) {
+    const exam = exams.find(e => e.exam_id == examId);
+    if (exam) {
+        openExamModal(null, exam);
+    }
 }
 
 async function deleteExam(examId) {
@@ -754,11 +801,10 @@ function displayAssignments(assignments) {
         const sectionAssignments = sections[sectionNum];
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>Shift ${sectionAssignments[0].shift_number}</td>
-            <td>Section ${sectionNum}</td>
+            <td>گەرا ${sectionAssignments[0].shift_number}</td>
+            <td>کەرتێ ${sectionNum}</td>
             <td>${sectionAssignments[0]?.teacher_name || 'N/A'}</td>
-            <td>${sectionAssignments[1]?.teacher_name || 'N/A'}</td>
-        `;
+         `;
         tbody.appendChild(row);
     });
 }
