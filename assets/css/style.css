@@ -106,14 +106,25 @@ main {
     min-width: 60px;
 }
 
-.filters .form-group select,
-.filters .form-group input {
-    padding: 8px 12px;
+.teacher-select {
+    display: none;
+    width: 100%;
+    padding: 4px;
     border: 1px solid #ddd;
-    border-radius: 5px;
+    border-radius: 4px;
     font-size: 14px;
-    flex: 1;
-    min-width: 120px;
+}
+
+.teacher-name {
+    display: inline;
+}
+
+.editing .teacher-select {
+    display: inline-block;
+}
+
+.editing .teacher-name {
+    display: none;
 }
 
 .stats-grid {
@@ -206,6 +217,11 @@ main {
 
 .btn-success:hover {
     background: #218838;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
 }
 
 .table-container {

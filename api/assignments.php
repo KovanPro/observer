@@ -264,8 +264,38 @@ function generateAssignments($db, $exam_date, $shift_id) {
 
 switch ($method) {
     case 'GET':
+        $action = isset($_GET['action']) ? $_GET['action'] : null;
         $exam_date = isset($_GET['date']) ? $db->escape($_GET['date']) : null;
         $shift_id = isset($_GET['shift_id']) ? (int)$_GET['shift_id'] : null;
+        
+        if ($action === 'get_available_teachers') {
+            if (!$exam_date || !$shift_id) {
+                sendError('Exam date and shift ID are required');
+            }
+            
+            $availableTeachers = getAvailableTeachers($db, $exam_date, $shift_id);
+            
+            // If for_edit=1, also include currently assigned teachers for that date/shift
+            $forEdit = isset($_GET['for_edit']) && $_GET['for_edit'] == '1';
+            if ($forEdit) {
+                $stmt = $db->prepare("
+                    SELECT DISTINCT t.teacher_id, t.teacher_name
+                    FROM observer_assignments oa
+                    JOIN teachers t ON oa.teacher_id = t.teacher_id
+                    WHERE oa.exam_date = ? AND oa.shift_id = ?
+                ");
+                $stmt->bind_param("si", $exam_date, $shift_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                
+                while ($row = $result->fetch_assoc()) {
+                    $availableTeachers[$row['teacher_id']] = $row;
+                }
+            }
+            
+            sendSuccess('Available teachers retrieved', array_values($availableTeachers));
+            break;
+        }
         
         if (!$exam_date) {
             sendError('Exam date is required');
@@ -278,7 +308,7 @@ switch ($method) {
                    es.shift_time,
                    s.section_number
             FROM observer_assignments oa
-            JOIN teachers t ON oa.teacher_id = t.teacher_id
+            LEFT JOIN teachers t ON oa.teacher_id = t.teacher_id
             JOIN exam_shifts es ON oa.shift_id = es.shift_id
             JOIN sections s ON oa.section_id = s.section_id
             WHERE oa.exam_date = ?
@@ -310,6 +340,76 @@ switch ($method) {
         
     case 'POST':
         $data = json_decode(file_get_contents('php://input'), true);
+        $action = isset($data['action']) ? $data['action'] : null;
+        
+        if ($action === 'update_assignments') {
+            if (!isset($data['date']) || !isset($data['shift_id']) || !isset($data['updates'])) {
+                sendError('Date, shift_id, and updates are required');
+            }
+            
+            $exam_date = $db->escape($data['date']);
+            $shift_id = (int)$data['shift_id'];
+            $updates = $data['updates'];
+            
+            $db->getConnection()->autocommit(false);
+            
+            try {
+                foreach ($updates as $update) {
+                    $section_number = (int)$update['section_number'];
+                    $teacher_id = isset($update['teacher_id']) ? (int)$update['teacher_id'] : null;
+                    
+                    // Get section_id
+                    $stmt = $db->prepare("SELECT section_id FROM sections WHERE section_number = ?");
+                    if (!$stmt) {
+                        throw new Exception('Database prepare error: ' . $db->getConnection()->error);
+                    }
+                    $stmt->bind_param("i", $section_number);
+                    if (!$stmt->execute()) {
+                        throw new Exception('Database execute error: ' . $stmt->error);
+                    }
+                    $section_result = $stmt->get_result();
+                    $section = $section_result->fetch_assoc();
+                    
+                    if (!$section) {
+                        throw new Exception("Section $section_number not found");
+                    }
+                    
+                    $section_id = $section['section_id'];
+                    
+                    // Delete existing assignment
+                    $stmt = $db->prepare("DELETE FROM observer_assignments WHERE exam_date = ? AND shift_id = ? AND section_id = ?");
+                    if (!$stmt) {
+                        throw new Exception('Database prepare error: ' . $db->getConnection()->error);
+                    }
+                    $stmt->bind_param("sii", $exam_date, $shift_id, $section_id);
+                    if (!$stmt->execute()) {
+                        throw new Exception('Database execute error: ' . $stmt->error);
+                    }
+                    
+                    // Insert new assignment if teacher_id is not null
+                    if ($teacher_id) {
+                        $stmt = $db->prepare("INSERT INTO observer_assignments (exam_date, shift_id, section_id, teacher_id) VALUES (?, ?, ?, ?)");
+                        if (!$stmt) {
+                            throw new Exception('Database prepare error: ' . $db->getConnection()->error);
+                        }
+                        $stmt->bind_param("siii", $exam_date, $shift_id, $section_id, $teacher_id);
+                        if (!$stmt->execute()) {
+                            throw new Exception('Database execute error: ' . $stmt->error);
+                        }
+                    }
+                }
+                
+                $db->getConnection()->commit();
+                $db->getConnection()->autocommit(true);
+                sendSuccess('Assignments updated successfully');
+                
+            } catch (Exception $e) {
+                $db->getConnection()->rollback();
+                $db->getConnection()->autocommit(true);
+                sendError('Error updating assignments: ' . $e->getMessage());
+            }
+            break;
+        }
         
         if (!isset($data['exam_date'])) {
             sendError('Exam date is required');

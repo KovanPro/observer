@@ -910,7 +910,41 @@ async function loadAssignments() {
         if (shiftId) url += `&shift_id=${shiftId}`;
         
         const assignments = await fetchData(url);
-        displayAssignments(assignments);
+        
+        // If no shift selected, show all assignments for the date
+        if (!shiftId) {
+            displayAssignments(assignments);
+            return;
+        }
+        
+        // Get all sections for this shift
+        const shift = shifts.find(s => s.shift_id == shiftId);
+        if (!shift) return;
+        
+        const sectionsCount = shift.sections_count;
+        
+        // Create assignments array with all sections, filling in existing assignments
+        const fullAssignments = [];
+        for (let i = 1; i <= sectionsCount; i++) {
+            const existing = assignments.find(a => a.section_number == i);
+            if (existing) {
+                fullAssignments.push(existing);
+            } else {
+                // Create empty assignment for this section
+                fullAssignments.push({
+                    assignment_id: null,
+                    exam_date: date,
+                    shift_id: shiftId,
+                    section_number: i,
+                    teacher_id: null,
+                    teacher_name: null,
+                    shift_number: shift.shift_number,
+                    shift_time: shift.shift_time
+                });
+            }
+        }
+        
+        displayAssignments(fullAssignments);
     } catch (error) {
         console.error('Error loading assignments:', error);
     }
@@ -931,14 +965,119 @@ function displayAssignments(assignments) {
     
     Object.keys(sections).sort((a, b) => a - b).forEach(sectionNum => {
         const sectionAssignments = sections[sectionNum];
+        const assignment = sectionAssignments[0]; // Assuming 1 per section now
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>گەرا ${sectionAssignments[0].shift_number}</td>
+            <td>گەرا ${assignment.shift_number}</td>
             <td>کەرتێ ${sectionNum}</td>
-            <td>${sectionAssignments[0]?.teacher_name || 'N/A'}</td>
+            <td>
+                <select class="teacher-select" data-section="${sectionNum}" data-original="${assignment.teacher_id || ''}">
+                    <option value="">-- بەتاڵ --</option>
+                </select>
+                <span class="teacher-name">${assignment.teacher_name || 'N/A'}</span>
+            </td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="editAssignment(${sectionNum})">دەستکاری</button>
+                <button class="btn btn-danger btn-sm" onclick="removeTeacher(${sectionNum})">لابردن</button>
+            </td>
          `;
         tbody.appendChild(row);
     });
+    
+    // Hide/show update button based on if there are assignments
+    const updateBtn = document.getElementById('update-assignments-btn');
+    updateBtn.style.display = assignments.length > 0 ? 'inline-block' : 'none';
+}
+
+async function editAssignment(sectionNum) {
+    const date = document.getElementById('assignment-date').value;
+    const shiftId = document.getElementById('assignment-shift').value;
+    
+    if (!date || !shiftId) {
+        alert('Please select date and shift first');
+        return;
+    }
+    
+    const row = document.querySelector(`[data-section="${sectionNum}"]`).closest('tr');
+    row.classList.add('editing');
+    
+    const select = row.querySelector('.teacher-select');
+    
+    try {
+        // Get available teachers for this date/shift
+        const availableTeachers = await fetchData(`assignments.php?action=get_available_teachers&date=${date}&shift_id=${shiftId}&for_edit=1`);
+        
+        select.innerHTML = '<option value="">-- بەتاڵ --</option>';
+        availableTeachers.forEach(teacher => {
+            const option = document.createElement('option');
+            option.value = teacher.teacher_id;
+            option.textContent = teacher.teacher_name;
+            select.appendChild(option);
+        });
+        
+        // Set current value
+        const currentTeacherId = select.getAttribute('data-original');
+        if (currentTeacherId) {
+            select.value = currentTeacherId;
+        }
+        
+    } catch (error) {
+        console.error('Error loading available teachers:', error);
+        alert('Error loading available teachers');
+    }
+}
+
+function removeTeacher(sectionNum) {
+    const row = document.querySelector(`[data-section="${sectionNum}"]`).closest('tr');
+    const select = row.querySelector('.teacher-select');
+    select.value = '';
+    row.classList.add('editing');
+}
+
+async function updateAssignments() {
+    const date = document.getElementById('assignment-date').value;
+    const shiftId = document.getElementById('assignment-shift').value;
+    
+    if (!date || !shiftId) {
+        alert('Please select date and shift first');
+        return;
+    }
+    
+    const updates = [];
+    const editingRows = document.querySelectorAll('.editing');
+    
+    editingRows.forEach(row => {
+        const sectionNum = row.querySelector('.teacher-select').getAttribute('data-section');
+        const newTeacherId = row.querySelector('.teacher-select').value;
+        const originalTeacherId = row.querySelector('.teacher-select').getAttribute('data-original');
+        
+        if (newTeacherId !== originalTeacherId) {
+            updates.push({
+                section_number: parseInt(sectionNum),
+                teacher_id: newTeacherId ? parseInt(newTeacherId) : null
+            });
+        }
+    });
+    
+    if (updates.length === 0) {
+        alert('No changes to update');
+        return;
+    }
+    
+    try {
+        await postData('assignments.php', {
+            action: 'update_assignments',
+            date: date,
+            shift_id: parseInt(shiftId),
+            updates: updates
+        });
+        
+        alert('Assignments updated successfully!');
+        loadAssignments();
+        
+    } catch (error) {
+        alert('Error updating assignments: ' + error.message);
+    }
 }
 
 async function generateAssignments() {
