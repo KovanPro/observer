@@ -14,6 +14,7 @@ switch ($method) {
         $subject_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
         $dept_id = isset($_GET['dept_id']) ? (int)$_GET['dept_id'] : null;
         $stage_id = isset($_GET['stage_id']) ? (int)$_GET['stage_id'] : null;
+        $stage_number = isset($_GET['stage_number']) ? (int)$_GET['stage_number'] : null;
         
         if ($subject_id) {
             // Get single subject with teachers
@@ -71,6 +72,12 @@ switch ($method) {
             if ($stage_id) {
                 $sql .= " AND s.stage_id = ?";
                 $params[] = $stage_id;
+                $types .= "i";
+            }
+            
+            if ($stage_number) {
+                $sql .= " AND st.stage_number = ?";
+                $params[] = $stage_number;
                 $types .= "i";
             }
             

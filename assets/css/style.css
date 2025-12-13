@@ -199,6 +199,15 @@ main {
     background: #138496;
 }
 
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
 .table-container {
     overflow-x: auto;
     margin-top: 20px;
@@ -304,7 +313,7 @@ table tbody tr:nth-child(even) {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 200px;
+    max-height: 400px;
     overflow-y: auto;
     border: 1px solid #ddd;
     padding: 10px;

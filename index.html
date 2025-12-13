@@ -110,6 +110,7 @@
                 <h2>Exams Management</h2>
                 <div class="page-header">
                     <button class="btn btn-primary" onclick="openExamModal()">+ Add Exam</button>
+                    <button class="btn btn-success" onclick="openMultiExamModal()">+ Add Multi Exam</button>
                     <div class="filters">
                         <div class="form-group">
                             <label>بەروار:</label>
@@ -335,6 +336,40 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
                 <button type="button" class="btn btn-secondary" onclick="closeModal('exam-modal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Multi Exam Modal -->
+    <div id="multi-exam-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('multi-exam-modal')">&times;</span>
+            <h2>زێدەکرنا فرە ئەزمونان</h2>
+            <form id="multi-exam-form">
+                <div class="form-group">
+                    <label>بەروارا ئەزمونێ:</label>
+                    <input type="date" id="multi-exam-date" required>
+                </div>
+                <div class="form-group">
+                    <label>گەر:</label>
+                    <select id="multi-exam-shift" required onchange="loadSubjectsForMultiExam()">
+                        <option value="">گەرا : </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>قۆناغ:</label>
+                    <select id="multi-exam-stage" required onchange="loadSubjectsForMultiExam()">
+                        <option value="">قۆناغی ب هەلبژێرە</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>بابەتەکان:</label>
+                    <div id="multi-exam-subjects" class="checkbox-group">
+                        <!-- Subjects will be loaded here -->
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save All Exams</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('multi-exam-modal')">Cancel</button>
             </form>
         </div>
     </div>

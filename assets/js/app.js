@@ -51,6 +51,7 @@ function setupEventListeners() {
     document.getElementById('teacher-form').addEventListener('submit', saveTeacher);
     document.getElementById('subject-form').addEventListener('submit', saveSubject);
     document.getElementById('exam-form').addEventListener('submit', saveExam);
+    document.getElementById('multi-exam-form').addEventListener('submit', saveMultiExam);
     document.getElementById('exclusion-form').addEventListener('submit', saveExclusion);
     
     // Department change listener for subject modal (add subject)
@@ -739,6 +740,137 @@ async function saveExam(e) {
         loadDashboard();
     } catch (error) {
         alert('Error saving exam: ' + error.message);
+    }
+}
+
+function openMultiExamModal() {
+    document.getElementById('multi-exam-date').value = '';
+    
+    // Populate shift dropdown
+    const shiftSelect = document.getElementById('multi-exam-shift');
+    shiftSelect.innerHTML = '<option value="">گەرا : </option>';
+    shifts.forEach(shift => {
+        const option = document.createElement('option');
+        option.value = shift.shift_id;
+        option.textContent = `Shift ${shift.shift_number} (${shift.shift_time})`;
+        shiftSelect.appendChild(option);
+    });
+    
+    document.getElementById('multi-exam-stage').innerHTML = '<option value="">قۆناغی ب هەلبژێرە</option>';
+    document.getElementById('multi-exam-subjects').innerHTML = '<p style="color: #666; font-style: italic;">Please select shift and stage to load subjects</p>';
+    
+    document.getElementById('multi-exam-modal').style.display = 'block';
+}
+
+async function loadSubjectsForMultiExam() {
+    const shiftId = document.getElementById('multi-exam-shift').value;
+    const stageId = document.getElementById('multi-exam-stage').value;
+    const stageSelect = document.getElementById('multi-exam-stage');
+    const subjectsContainer = document.getElementById('multi-exam-subjects');
+    
+    if (!shiftId) {
+        stageSelect.innerHTML = '<option value="">قۆناغی ب هەلبژێرە</option>';
+        subjectsContainer.innerHTML = '<p style="color: #666; font-style: italic;">Please select shift and stage to load subjects</p>';
+        return;
+    }
+    
+    // Load stages if not loaded
+    if (stageSelect.children.length <= 1) {
+        try {
+            const stagesData = await fetchData('stages.php');
+            stageSelect.innerHTML = '<option value="">قۆناغی ب هەلبژێرە</option>';
+            stagesData.forEach(stage => {
+                const option = document.createElement('option');
+                option.value = stage.stage_id;
+                option.textContent = stage.stage_name;
+                stageSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading stages:', error);
+            return;
+        }
+    }
+    
+    if (!stageId) {
+        subjectsContainer.innerHTML = '<p style="color: #666; font-style: italic;">Please select stage to load subjects</p>';
+        return;
+    }
+    
+    // Get stage number from selected stage
+    const selectedStage = stages.find(s => s.stage_id == stageId);
+    if (!selectedStage) {
+        subjectsContainer.innerHTML = '<p style="color: #f00;">Selected stage not found</p>';
+        return;
+    }
+    
+    try {
+        const subjectsData = await fetchData(`subjects.php?stage_number=${selectedStage.stage_number}`);
+        subjectsContainer.innerHTML = '';
+        
+        subjectsData.forEach(subject => {
+            const checkboxDiv = document.createElement('div');
+            checkboxDiv.style.display = 'flex';
+            checkboxDiv.style.alignItems = 'center';
+            checkboxDiv.style.gap = '8px';
+            checkboxDiv.style.padding = '4px 0';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `multi-subject-${subject.subject_id}`;
+            checkbox.value = subject.subject_id;
+            checkbox.name = 'selected_subjects';
+            
+            const label = document.createElement('label');
+            label.htmlFor = `multi-subject-${subject.subject_id}`;
+            label.textContent = `${subject.subject_name} (${subject.dept_name})`;
+            label.style.cursor = 'pointer';
+            label.style.flex = '1';
+            
+            checkboxDiv.appendChild(checkbox);
+            checkboxDiv.appendChild(label);
+            subjectsContainer.appendChild(checkboxDiv);
+        });
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+        subjectsContainer.innerHTML = '<p style="color: #f00;">Error loading subjects</p>';
+    }
+}
+
+async function saveMultiExam(e) {
+    e.preventDefault();
+    
+    const examDate = document.getElementById('multi-exam-date').value;
+    const shiftId = document.getElementById('multi-exam-shift').value;
+    const stageId = document.getElementById('multi-exam-stage').value;
+    const selectedSubjects = Array.from(document.querySelectorAll('#multi-exam-subjects input[type="checkbox"]:checked')).map(cb => cb.value);
+    
+    if (!examDate || !shiftId || !stageId) {
+        alert('Please fill all required fields');
+        return;
+    }
+    
+    if (selectedSubjects.length === 0) {
+        alert('Please select at least one subject');
+        return;
+    }
+    
+    try {
+        const promises = selectedSubjects.map(subjectId => 
+            postData('exams.php', {
+                exam_date: examDate,
+                shift_id: parseInt(shiftId),
+                subject_id: parseInt(subjectId)
+            })
+        );
+        
+        await Promise.all(promises);
+        alert(`Successfully created ${selectedSubjects.length} exams!`);
+        
+        closeModal('multi-exam-modal');
+        loadExams();
+        loadDashboard();
+    } catch (error) {
+        alert('Error saving exams: ' + error.message);
     }
 }
 
